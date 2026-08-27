@@ -143,10 +143,26 @@ export default function Home() {
             <p className="text-xs uppercase tracking-[0.32em] text-[var(--muted)]">Care coordination platform</p>
             <p className="mt-1 text-sm font-medium text-[var(--foreground)]">CareFlow OS</p>
           </div>
-          <div className="hidden items-center gap-2 rounded-full border border-[var(--line)] bg-white/70 px-3 py-2 text-xs text-[var(--muted)] md:flex">
-            <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-            Demo framing: ortho as flagship, multi-specialty underneath
-          </div>
+          <nav className="flex items-center gap-2">
+            <a
+              href="/intake"
+              className="rounded-full bg-[var(--foreground)] px-4 py-2 text-xs font-medium text-white transition hover:bg-slate-800"
+            >
+              Write a Referral
+            </a>
+            <a
+              href="/gp-dashboard"
+              className="rounded-full border border-[var(--line)] bg-white/75 px-4 py-2 text-xs font-medium text-[var(--foreground)] transition hover:bg-white"
+            >
+              GP Dashboard
+            </a>
+            <a
+              href="/specialist-dashboard"
+              className="rounded-full border border-[var(--line)] bg-white/75 px-4 py-2 text-xs font-medium text-[var(--foreground)] transition hover:bg-white"
+            >
+              Specialist Login
+            </a>
+          </nav>
         </header>
 
         <div className="grid flex-1 gap-8 py-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
@@ -168,16 +184,22 @@ export default function Home() {
 
             <div className="mt-8 flex flex-wrap gap-3">
               <a
-                href="#demo"
-                className="rounded-full bg-[var(--foreground)] px-5 py-3 text-sm font-medium text-white shadow-lg shadow-slate-950/10 transition hover:-translate-y-0.5"
+                href="/intake"
+                className="rounded-full bg-[var(--accent)] px-5 py-3 text-sm font-medium text-white shadow-lg shadow-amber-900/20 transition hover:-translate-y-0.5 hover:bg-amber-600"
               >
-                View demo flow
+                Write a Referral →
               </a>
               <a
-                href="#triage"
+                href="/gp-dashboard"
+                className="rounded-full bg-[var(--foreground)] px-5 py-3 text-sm font-medium text-white shadow-lg shadow-slate-950/10 transition hover:-translate-y-0.5"
+              >
+                GP Dashboard
+              </a>
+              <a
+                href="#demo"
                 className="rounded-full border border-[var(--line)] bg-white/75 px-5 py-3 text-sm font-medium text-[var(--foreground)] transition hover:-translate-y-0.5 hover:bg-white"
               >
-                See triage examples
+                View demo
               </a>
             </div>
 
