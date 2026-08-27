@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { Referral, ReferralStatus } from '@/lib/referralStore'
+import { Specialist } from '@/lib/specialistStore'
 import UrgencyBadge from '@/app/components/UrgencyBadge'
-
-const PASSWORD = '123'
 
 const STATUS_LABELS: Record<ReferralStatus, string> = {
   submitted: 'Awaiting Review',
@@ -14,32 +13,54 @@ const STATUS_LABELS: Record<ReferralStatus, string> = {
 }
 
 export default function SpecialistDashboard() {
-  const [unlocked, setUnlocked] = useState(false)
-  const [passwordInput, setPasswordInput] = useState('')
-  const [passwordError, setPasswordError] = useState(false)
+  const [specialist, setSpecialist] = useState<Specialist | null>(null)
+  const [nameInput, setNameInput] = useState('')
+  const [specialtyInput, setSpecialtyInput] = useState('')
+  const [hospitalInput, setHospitalInput] = useState('')
+  const [loginError, setLoginError] = useState('')
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
 
   const [referrals, setReferrals] = useState<Referral[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [selected, setSelected] = useState<Referral | null>(null)
 
-  async function load() {
-    const res = await fetch('/api/referrals')
+  async function load(specId: string) {
+    setLoading(true)
+    const res = await fetch(`/api/referrals?specialistId=${specId}`)
     const data = await res.json()
     setReferrals(data.referrals)
     setLoading(false)
   }
 
-  useEffect(() => { if (unlocked) load() }, [unlocked])
+  useEffect(() => {
+    if (specialist) load(specialist.id)
+  }, [specialist])
 
-  function handleUnlock(e: React.SyntheticEvent<HTMLFormElement>) {
+  async function handleLogin(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (passwordInput === PASSWORD) {
-      setUnlocked(true)
-      setPasswordError(false)
-    } else {
-      setPasswordError(true)
-      setPasswordInput('')
+    const name = nameInput.trim()
+    const specialty = specialtyInput.trim()
+    const hospital = hospitalInput.trim()
+    if (!name || !specialty || !hospital) {
+      setLoginError('All fields are required.')
+      return
+    }
+    setIsLoggingIn(true)
+    setLoginError('')
+    try {
+      const res = await fetch('/api/specialists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, specialty, hospital }),
+      })
+      if (!res.ok) throw new Error('Failed to log in.')
+      const data = await res.json()
+      setSpecialist(data.specialist)
+    } catch {
+      setLoginError('Something went wrong. Please try again.')
+    } finally {
+      setIsLoggingIn(false)
     }
   }
 
@@ -47,11 +68,11 @@ export default function SpecialistDashboard() {
     const res = await fetch(`/api/referrals/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, noteText, noteAuthor: 'Specialist' }),
+      body: JSON.stringify({ status, noteText, noteAuthor: specialist?.name ?? 'Specialist' }),
     })
-    if (res.ok) {
+    if (res.ok && specialist) {
       setFeedback(`Updated → ${STATUS_LABELS[status]}`)
-      await load()
+      await load(specialist.id)
       if (selected?.id === id) {
         const updated = await fetch(`/api/referrals/${id}`).then(r => r.json())
         setSelected(updated.referral)
@@ -59,35 +80,64 @@ export default function SpecialistDashboard() {
     }
   }
 
-  if (!unlocked) {
+  if (!specialist) {
     return (
       <div className="flex min-h-screen items-center justify-center px-6">
         <div className="w-full max-w-sm">
           <div className="rounded-[2rem] border border-[var(--line)] bg-[var(--surface)]/90 p-8 shadow-sm">
             <div className="mb-6 text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-[var(--line)] bg-white text-2xl shadow-sm">🔒</div>
-              <p className="text-xs uppercase tracking-[0.25em] text-[var(--muted)]">Restricted Access</p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-[var(--foreground)]">Specialist Login</h1>
-              <p className="mt-2 text-sm text-[var(--muted)]">Enter your access code to continue.</p>
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-[var(--line)] bg-white text-2xl shadow-sm">🩺</div>
+              <p className="text-xs uppercase tracking-[0.25em] text-[var(--muted)]">Specialist Portal</p>
+              <h1 className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-[var(--foreground)]">Log In</h1>
+              <p className="mt-2 text-sm text-[var(--muted)]">Enter your details to access your patient referrals.</p>
             </div>
-            <form onSubmit={handleUnlock} className="space-y-4">
+            <form onSubmit={handleLogin} className="space-y-3">
               <div>
-                <label className="block text-xs font-medium uppercase tracking-wider text-[var(--muted)]">Access Code</label>
-                <input type="password" value={passwordInput}
-                  onChange={(e) => { setPasswordInput(e.target.value); setPasswordError(false) }}
-                  placeholder="••••" autoFocus
-                  className={`mt-1.5 w-full rounded-2xl border px-4 py-3 text-sm outline-none transition
-                    ${passwordError ? 'border-red-400 bg-red-50' : 'border-[var(--line)] bg-white focus:border-amber-400'}`} />
-                {passwordError && <p className="mt-1.5 text-xs text-red-600">Incorrect code. Try again.</p>}
+                <label className="block text-xs font-medium uppercase tracking-wider text-[var(--muted)]">Full Name</label>
+                <input
+                  type="text"
+                  value={nameInput}
+                  onChange={(e) => { setNameInput(e.target.value); setLoginError('') }}
+                  placeholder="e.g. Dr. Sarah Chen"
+                  autoFocus
+                  className="mt-1.5 w-full rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-sm outline-none transition focus:border-amber-400"
+                />
               </div>
-              <button type="submit"
-                className="w-full rounded-full bg-[var(--foreground)] py-3 text-sm font-medium text-white shadow-md transition hover:bg-slate-800">
-                Unlock Dashboard
+              <div>
+                <label className="block text-xs font-medium uppercase tracking-wider text-[var(--muted)]">Specialty</label>
+                <input
+                  type="text"
+                  value={specialtyInput}
+                  onChange={(e) => { setSpecialtyInput(e.target.value); setLoginError('') }}
+                  placeholder="e.g. Orthopedics"
+                  className="mt-1.5 w-full rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-sm outline-none transition focus:border-amber-400"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium uppercase tracking-wider text-[var(--muted)]">Hospital / Clinic</label>
+                <input
+                  type="text"
+                  value={hospitalInput}
+                  onChange={(e) => { setHospitalInput(e.target.value); setLoginError('') }}
+                  placeholder="e.g. General Hospital"
+                  className="mt-1.5 w-full rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-sm outline-none transition focus:border-amber-400"
+                />
+              </div>
+              {loginError && <p className="text-xs text-red-600">{loginError}</p>}
+              <button
+                type="submit"
+                disabled={isLoggingIn}
+                className="w-full rounded-full bg-[var(--foreground)] py-3 text-sm font-medium text-white shadow-md transition hover:bg-slate-800 disabled:opacity-60"
+              >
+                {isLoggingIn ? 'Logging in…' : 'Access My Dashboard'}
               </button>
             </form>
             <p className="mt-6 text-center text-xs text-[var(--muted)]">
               Not a specialist?{' '}
               <a href="/" className="font-medium text-[var(--accent)] hover:underline">← Home</a>
+            </p>
+            <p className="mt-2 text-center text-xs text-[var(--muted)]">
+              New specialists are registered automatically on first login.
             </p>
           </div>
         </div>
@@ -100,11 +150,18 @@ export default function SpecialistDashboard() {
       <header className="mb-8 flex items-center justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.25em] text-[var(--muted)]">Specialist Dashboard</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-[-0.04em] text-[var(--foreground)]">Patient Intake Forms</h1>
+          <h1 className="mt-1 text-3xl font-semibold tracking-[-0.04em] text-[var(--foreground)]">
+            {specialist.name}
+          </h1>
+          <p className="mt-0.5 text-sm text-[var(--muted)]">
+            {specialist.specialty} · {specialist.hospital}
+          </p>
         </div>
-        <button onClick={() => { setUnlocked(false); setPasswordInput('') }}
-          className="rounded-full border border-[var(--line)] bg-white px-4 py-2 text-xs font-medium text-[var(--muted)] hover:text-[var(--foreground)]">
-          🔒 Lock
+        <button
+          onClick={() => { setSpecialist(null); setReferrals([]); setSelected(null) }}
+          className="rounded-full border border-[var(--line)] bg-white px-4 py-2 text-xs font-medium text-[var(--muted)] hover:text-[var(--foreground)]"
+        >
+          🔒 Log out
         </button>
       </header>
 
@@ -119,7 +176,7 @@ export default function SpecialistDashboard() {
           <div className="space-y-4">
             {referrals.length === 0 && (
               <p className="rounded-[2rem] border border-[var(--line)] bg-[var(--surface)]/90 p-10 text-center text-sm text-[var(--muted)]">
-                No intake forms submitted yet.
+                No referrals assigned to you yet.
               </p>
             )}
             {referrals.map((r) => (

@@ -13,7 +13,7 @@ export default function SpecialistQueueItem({
   referral, onAccept, onSchedule, onSelect, selected,
 }: SpecialistQueueItemProps) {
   const canAccept = referral.status === 'reviewed'
-  const canSchedule = referral.status === 'accepted'
+  const canSchedule = referral.status === 'appointment_made'
 
   function handleScheduleClick(e: React.MouseEvent) {
     e.stopPropagation()
@@ -35,11 +35,8 @@ export default function SpecialistQueueItem({
         <UrgencyBadge level={referral.urgencyLevel} />
       </div>
       <p className="mt-3 line-clamp-2 text-sm leading-6 text-[var(--muted)]">{referral.summary}</p>
-      {referral.assignedSpecialist && (
-        <p className="mt-2 text-xs text-[var(--muted)]">Assigned: {referral.assignedSpecialist}</p>
-      )}
-      {referral.scheduledDate && (
-        <p className="mt-1 text-xs font-medium text-emerald-700">Scheduled: {referral.scheduledDate}</p>
+      {referral.assignedSpecialistId && (
+        <p className="mt-2 text-xs text-[var(--muted)]">Assigned specialist ID: {referral.assignedSpecialistId}</p>
       )}
       <div className="mt-4 flex items-center gap-2">
         {canAccept && (

@@ -2,8 +2,14 @@ import { NextResponse } from 'next/server'
 import { referralStore } from '@/lib/referralStore'
 import { sendIntakeConfirmation } from '@/lib/email'
 
-export async function GET() {
-  return NextResponse.json({ referrals: referralStore.getAll() })
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const specialistId = searchParams.get('specialistId')
+  const all = referralStore.getAll()
+  const referrals = specialistId
+    ? all.filter((r) => r.assignedSpecialistId === specialistId)
+    : all
+  return NextResponse.json({ referrals })
 }
 
 export async function POST(request: Request) {
@@ -21,7 +27,8 @@ export async function POST(request: Request) {
       specialistType,
       summary,
       referralLetter,
-      rationale
+      rationale,
+      assignedSpecialistId,
     } = body
 
     if (!patientName || !intakeText) {
@@ -40,7 +47,8 @@ export async function POST(request: Request) {
       specialistType: specialistType || 'General Practice',
       summary: summary || 'AI intake summary pending.',
       referralLetter: referralLetter || '',
-      rationale: rationale || ''
+      rationale: rationale || '',
+      assignedSpecialistId: assignedSpecialistId || undefined,
     })
 
     // Send confirmation email — non-blocking, don't fail the request if it errors

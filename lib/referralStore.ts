@@ -18,6 +18,7 @@ export type Referral = {
   status: ReferralStatus
   createdAt: string
   notes: { author: string; text: string; timestamp: string }[]
+  assignedSpecialistId?: string
 }
 
 const INITIAL_REFERRALS: Referral[] = [
@@ -39,7 +40,8 @@ const INITIAL_REFERRALS: Referral[] = [
     createdAt: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
     notes: [
       { author: 'Specialist', text: 'Reviewed intake form. Urgent case — scheduling within 48 hours.', timestamp: '1 hour ago' }
-    ]
+    ],
+    assignedSpecialistId: 'spec-1',
   },
   {
     id: 'ref-102',
@@ -57,7 +59,8 @@ const INITIAL_REFERRALS: Referral[] = [
     rationale: 'Chronic duration without acute red flags warrants subspecialty outpatient evaluation.',
     status: 'submitted',
     createdAt: new Date(Date.now() - 1000 * 60 * 360).toISOString(),
-    notes: []
+    notes: [],
+    assignedSpecialistId: 'spec-2',
   }
 ]
 

@@ -36,18 +36,17 @@ const SYMPTOM_TAGS = [
   "Limited Mobility",
 ];
 
-type Provider = {
+type Specialist = {
+  id: string;
   name: string;
-  address: string;
-  phone: string;
-  matchReason: string;
+  specialty: string;
+  hospital: string;
 };
 
 type TriageResult = {
   urgencyLevel: string;
   specialistType: string;
   summary: string;
-  providers: Provider[];
 };
 
 export default function IntakeForm() {
@@ -66,7 +65,10 @@ export default function IntakeForm() {
   const [painLevel, setPainLevel] = useState("5");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
   const [triageResult, setTriageResult] = useState<TriageResult | null>(null);
+  const [specialists, setSpecialists] = useState<Specialist[]>([]);
+  const [selectedSpecialistId, setSelectedSpecialistId] = useState<string>("");
   const [trackingId, setTrackingId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -90,7 +92,6 @@ export default function IntakeForm() {
     setErrorMessage(null);
 
     try {
-      // Step 1: get AI triage + provider list
       const triageRes = await fetch("/api/triage", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -112,7 +113,30 @@ export default function IntakeForm() {
       const triage: TriageResult = await triageRes.json();
       setTriageResult(triage);
 
-      // Step 2: save referral to store so specialist can see it and patient can track it
+      // Load matching specialists from the registry
+      const specRes = await fetch(
+        `/api/specialists?specialty=${encodeURIComponent(triage.specialistType)}`
+      );
+      if (specRes.ok) {
+        const specData = await specRes.json();
+        setSpecialists(specData.specialists ?? []);
+        if (specData.specialists?.length > 0) {
+          setSelectedSpecialistId(specData.specialists[0].id);
+        }
+      }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Unknown error occurred");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleConfirmSpecialist() {
+    if (!triageResult) return;
+    setIsConfirming(true);
+    setErrorMessage(null);
+
+    try {
       const saveRes = await fetch("/api/referrals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -124,39 +148,51 @@ export default function IntakeForm() {
           duration,
           painLevel,
           intakeText,
-          urgencyLevel: triage.urgencyLevel.toLowerCase(),
-          specialistType: triage.specialistType,
-          summary: triage.summary,
+          urgencyLevel: triageResult.urgencyLevel.toLowerCase(),
+          specialistType: triageResult.specialistType,
+          summary: triageResult.summary,
           referralLetter: "",
           rationale: "",
+          assignedSpecialistId: selectedSpecialistId || undefined,
         }),
       });
 
       if (saveRes.ok) {
         const saved = await saveRes.json();
         setTrackingId(saved.referral.id);
+      } else {
+        throw new Error("Failed to save referral.");
       }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Unknown error occurred");
     } finally {
-      setIsSubmitting(false);
+      setIsConfirming(false);
     }
   }
 
-  // --- SUCCESS / RESULTS STATE ---
+  // --- RESULTS STATE ---
   if (triageResult) {
     const isUrgent = triageResult.urgencyLevel.toLowerCase() === "red";
+    const selectedSpecialist = specialists.find((s) => s.id === selectedSpecialistId);
 
     return (
       <div className="space-y-6">
-        {/* Tracking ID banner */}
+        {/* Tracking ID banner — shown after specialist confirmed */}
         {trackingId && (
           <div className="rounded-[1.5rem] border border-emerald-200 bg-emerald-50 p-5 text-center">
-            <p className="text-sm font-medium text-emerald-800">Your intake form has been submitted!</p>
-            <p className="mt-1 text-xs text-emerald-700">
-              Save your tracking ID to check your status anytime:
+            <p className="text-sm font-medium text-emerald-800">
+              Your referral has been sent to{" "}
+              <span className="font-semibold">
+                {selectedSpecialist?.name ?? "your specialist"}
+              </span>{" "}
+              at {selectedSpecialist?.hospital ?? "the clinic"}!
             </p>
-            <p className="mt-3 font-mono text-2xl font-bold tracking-widest text-emerald-900">{trackingId}</p>
+            <p className="mt-1 text-xs text-emerald-700">
+              Save your tracking ID — check your status anytime:
+            </p>
+            <p className="mt-3 font-mono text-2xl font-bold tracking-widest text-emerald-900">
+              {trackingId}
+            </p>
             <a
               href={`/referrals/${trackingId}`}
               className="mt-4 inline-block rounded-full bg-emerald-700 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800"
@@ -166,11 +202,12 @@ export default function IntakeForm() {
           </div>
         )}
 
+        {/* Triage summary */}
         <div className="rounded-[1.5rem] border border-[var(--line)] bg-[#fbf7f1] p-6 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--line)] pb-6">
             <div>
               <p className="text-xs uppercase tracking-[0.25em] text-[var(--muted)]">Triage Complete</p>
-              <h2 className="mt-2 text-2xl font-semibold text-[var(--foreground)]">Recommended Specialists</h2>
+              <h2 className="mt-2 text-2xl font-semibold text-[var(--foreground)]">AI Assessment</h2>
             </div>
             <div className="flex gap-2">
               <span
@@ -190,47 +227,83 @@ export default function IntakeForm() {
               </span>
             </div>
           </div>
-
           <div className="mt-6">
             <h3 className="text-sm font-medium text-[var(--foreground)]">Clinical Summary</h3>
             <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{triageResult.summary}</p>
           </div>
         </div>
 
-        <div className="rounded-[1.5rem] border border-[var(--line)] bg-white p-6 sm:p-8 shadow-sm">
-          <h3 className="text-lg font-semibold text-[var(--foreground)]">
-            Recommended Providers in {location || "your area"}
-          </h3>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            These {triageResult.specialistType.toLowerCase()} clinics match your location and accept {insurance}.
-          </p>
+        {/* Specialist picker — hidden once referral saved */}
+        {!trackingId && (
+          <div className="rounded-[1.5rem] border border-[var(--line)] bg-white p-6 sm:p-8 shadow-sm">
+            <h3 className="text-lg font-semibold text-[var(--foreground)]">Choose Your Specialist</h3>
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              Select a {triageResult.specialistType} specialist to receive your referral.
+            </p>
 
-          <div className="mt-6 grid gap-4">
-            {triageResult.providers.map((provider, idx) => (
-              <div
-                key={idx}
-                className="flex flex-col gap-4 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 transition hover:border-amber-300 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <div className="font-semibold text-[var(--foreground)]">{provider.name}</div>
-                  <div className="mt-1 text-sm text-[var(--muted)]">{provider.address}</div>
-                  <div className="mt-2 inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
-                    ✓ {provider.matchReason}
-                  </div>
-                </div>
-                <a
-                  href={`tel:${provider.phone}`}
-                  className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--foreground)] px-5 py-2.5 text-sm font-medium text-white transition hover:-translate-y-0.5 sm:w-auto"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-                    <path fillRule="evenodd" d="M2 3.5A1.5 1.5 0 013.5 2h1.148a1.5 1.5 0 011.465 1.175l.716 3.223a1.5 1.5 0 01-1.052 1.767l-.933.267c-.41.117-.643.555-.48.95a11.542 11.542 0 006.254 6.254c.395.163.833-.07.95-.48l.267-.933a1.5 1.5 0 011.767-1.052l3.223.716A1.5 1.5 0 0118 15.352V16.5a1.5 1.5 0 01-1.5 1.5H15c-1.149 0-2.263-.15-3.326-.43A13.022 13.022 0 012.43 8.326 13.019 13.019 0 012 5V3.5z" clipRule="evenodd" />
-                  </svg>
-                  Call {provider.phone}
-                </a>
+            {specialists.length === 0 ? (
+              <p className="mt-6 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 text-sm text-[var(--muted)]">
+                No {triageResult.specialistType} specialists are currently registered. Your referral will be sent to the care team.
+              </p>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {specialists.map((spec) => (
+                  <label
+                    key={spec.id}
+                    className={`flex cursor-pointer items-center gap-4 rounded-2xl border p-4 transition ${
+                      selectedSpecialistId === spec.id
+                        ? "border-amber-400 bg-amber-50"
+                        : "border-[var(--line)] bg-[var(--surface)] hover:border-amber-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="specialist"
+                      value={spec.id}
+                      checked={selectedSpecialistId === spec.id}
+                      onChange={() => setSelectedSpecialistId(spec.id)}
+                      className="accent-amber-500"
+                    />
+                    <div className="flex-1">
+                      <p className="font-semibold text-[var(--foreground)]">{spec.name}</p>
+                      <p className="text-sm text-[var(--muted)]">
+                        {spec.specialty} · {spec.hospital}
+                      </p>
+                    </div>
+                    {selectedSpecialistId === spec.id && (
+                      <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-medium text-amber-700">
+                        Selected
+                      </span>
+                    )}
+                  </label>
+                ))}
               </div>
-            ))}
+            )}
+
+            {errorMessage && (
+              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                {errorMessage}
+              </div>
+            )}
+
+            <button
+              onClick={handleConfirmSpecialist}
+              disabled={isConfirming}
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-[var(--foreground)] px-5 py-4 text-sm font-medium text-white shadow-lg shadow-slate-950/10 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isConfirming ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Sending referral…
+                </>
+              ) : specialists.length === 0 ? (
+                "Submit to Care Team →"
+              ) : (
+                `Send Referral to ${selectedSpecialist?.name ?? "Specialist"} →`
+              )}
+            </button>
           </div>
-        </div>
+        )}
       </div>
     );
   }
@@ -388,7 +461,7 @@ export default function IntakeForm() {
           {isSubmitting ? (
             <>
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              AI is analyzing symptoms...
+              AI is analyzing symptoms…
             </>
           ) : (
             "Submit to Clinical Team"

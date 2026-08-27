@@ -81,7 +81,7 @@ export async function POST(req: Request) {
     if (!geminiResponse.ok) {
       const errorText = await geminiResponse.text()
       console.error("Gemini API Error:", errorText)
-      return NextResponse.json({ error: "Failed to generate triage result." }, { status: 500 })
+      return NextResponse.json({ error: `Gemini error: ${errorText}` }, { status: 500 })
     }
 
     const geminiData = await geminiResponse.json()
