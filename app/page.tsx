@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import SymptomBodyPicker, { type BodyPartId } from "./components/SymptomBodyPicker"
 
 const referralFlow = [
   {
@@ -77,7 +78,9 @@ export default function Home() {
   const [intakeText, setIntakeText] = useState(
     "Patient fell while running yesterday. Left knee swelling, pain 8/10, unable to bear weight.",
   )
-  const [bodyPart, setBodyPart] = useState("knee")
+  const [selectedBodyParts, setSelectedBodyParts] = useState<BodyPartId[]>([
+    "knee-left",
+  ])
   const [symptoms, setSymptoms] = useState("swelling, severe pain, inability to bear weight")
   const [duration, setDuration] = useState("1 day")
   const [painLevel, setPainLevel] = useState("8")
@@ -104,7 +107,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           intakeText,
-          bodyPart,
+          bodyPart: selectedBodyParts.length ? selectedBodyParts.join(", ") : "knee-left",
           symptoms,
           duration,
           painLevel,
@@ -257,7 +260,7 @@ export default function Home() {
                       setIntakeText(
                         "Patient fell while running yesterday. Left knee swelling, pain 8/10, unable to bear weight.",
                       )
-                      setBodyPart("knee")
+                      setSelectedBodyParts(["knee-left"])
                       setSymptoms("swelling, severe pain, inability to bear weight")
                       setDuration("1 day")
                       setPainLevel("8")
@@ -269,22 +272,18 @@ export default function Home() {
                 </div>
 
                 <div className="grid gap-3 text-sm text-[var(--muted)] sm:grid-cols-2">
-                  <label className="rounded-2xl bg-white p-4 shadow-sm" htmlFor="bodyPart">
-                    <div className="font-medium text-[var(--foreground)]">Body part</div>
-                    <select
-                      id="bodyPart"
-                      value={bodyPart}
-                      onChange={(event) => setBodyPart(event.target.value)}
-                      className="mt-2 w-full rounded-xl border border-[var(--line)] bg-white px-3 py-2 text-sm text-[var(--foreground)]"
-                    >
-                      <option value="knee">Knee</option>
-                      <option value="hip">Hip</option>
-                      <option value="shoulder">Shoulder</option>
-                      <option value="back">Back</option>
-                      <option value="wrist">Wrist</option>
-                      <option value="chest">Chest</option>
-                    </select>
-                  </label>
+                  <div className="flex flex-col items-center rounded-2xl bg-white p-4 shadow-sm sm:col-span-2">
+                    <div className="mb-3 w-full text-left font-medium text-[var(--foreground)]">Body area</div>
+                    <SymptomBodyPicker
+                      value={selectedBodyParts}
+                      onChange={setSelectedBodyParts}
+                      multiple
+                      maxSelections={5}
+                      compact
+                      className="mx-auto"
+                      ariaLabel="Select the affected body area"
+                    />
+                  </div>
                   <label className="rounded-2xl bg-white p-4 shadow-sm" htmlFor="painLevel">
                     <div className="font-medium text-[var(--foreground)]">Pain level</div>
                     <input

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import SymptomBodyPicker, { type BodyPartId } from "./SymptomBodyPicker";
 
 const DURATION_OPTIONS = [
   "Less than 24 hours",
@@ -57,7 +58,9 @@ export default function IntakeForm() {
 
   // Existing State
   const [intakeText, setIntakeText] = useState("");
-  const [bodyPart, setBodyPart] = useState("knee");
+  const [selectedBodyParts, setSelectedBodyParts] = useState<BodyPartId[]>([
+    "knee-left",
+  ]);
   const [duration, setDuration] = useState(DURATION_OPTIONS[0]);
   const [insurance, setInsurance] = useState(INSURANCE_OPTIONS[0]);
   const [location, setLocation] = useState("");
@@ -97,7 +100,9 @@ export default function IntakeForm() {
           height,
           weight,
           intakeText,
-          bodyPart,
+          bodyPart: selectedBodyParts.length
+            ? selectedBodyParts.join(", ")
+            : "knee-left",
           duration,
           painLevel,
           location,
@@ -290,23 +295,19 @@ export default function IntakeForm() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="rounded-2xl bg-white p-4 shadow-sm border border-transparent transition-colors focus-within:border-amber-400">
-          <div className="font-medium text-[var(--foreground)] text-sm">
+        <div className="rounded-2xl bg-white p-4 shadow-sm border border-transparent transition-colors">
+          <div className="font-medium text-[var(--foreground)] text-sm mb-3">
             Affected Body Part
           </div>
-          <select
-            value={bodyPart}
-            onChange={(event) => setBodyPart(event.target.value)}
-            className="mt-2 w-full rounded-xl border border-[var(--line)] bg-white px-3 py-2 text-sm text-[var(--foreground)] outline-none"
-          >
-            <option value="knee">Knee</option>
-            <option value="hip">Hip</option>
-            <option value="shoulder">Shoulder</option>
-            <option value="back">Back</option>
-            <option value="wrist">Wrist</option>
-            <option value="chest">Chest</option>
-          </select>
-        </label>
+          <SymptomBodyPicker
+            value={selectedBodyParts}
+            onChange={setSelectedBodyParts}
+            multiple
+            compact
+            maxSelections={5}
+            ariaLabel="Select the affected body area"
+          />
+        </div>
 
         <label className="rounded-2xl bg-white p-4 shadow-sm border border-transparent transition-colors focus-within:border-amber-400">
           <div className="font-medium text-[var(--foreground)] text-sm">
