@@ -57,7 +57,7 @@ function buildPrompt(input: TriageInput) {
 export async function triageIntake(input: TriageInput): Promise<TriageResult> {
   const ai = getGeminiClient()
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.6-flash',
     contents: buildPrompt(input),
     config: {
       responseMimeType: 'application/json',
