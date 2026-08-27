@@ -5,7 +5,7 @@ import { sendIntakeConfirmation } from '@/lib/email'
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const specialistId = searchParams.get('specialistId')
-  const all = referralStore.getAll()
+  const all = await referralStore.getAll()
   const referrals = specialistId
     ? all.filter((r) => r.assignedSpecialistId === specialistId)
     : all
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'patientName and intakeText are required' }, { status: 400 })
     }
 
-    const referral = referralStore.add({
+    const referral = await referralStore.add({
       patientName,
       patientEmail: patientEmail || '',
       bodyPart: bodyPart || 'general',

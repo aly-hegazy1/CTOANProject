@@ -5,8 +5,8 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const specialty = searchParams.get('specialty')
   const specialists = specialty
-    ? specialistStore.getBySpecialty(specialty)
-    : specialistStore.getAll()
+    ? await specialistStore.getBySpecialty(specialty)
+    : await specialistStore.getAll()
   return NextResponse.json({ specialists })
 }
 
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
-    const specialist = specialistStore.findOrCreate(name, specialty, hospital)
+    const specialist = await specialistStore.findOrCreate(name, specialty, hospital)
     return NextResponse.json({ specialist })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error'

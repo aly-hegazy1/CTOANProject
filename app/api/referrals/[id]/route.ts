@@ -7,7 +7,7 @@ export async function GET(
   props: { params: Promise<{ id: string }> }
 ) {
   const { id } = await props.params
-  const referral = referralStore.getById(id)
+  const referral = await referralStore.getById(id)
   if (!referral) return NextResponse.json({ error: 'Referral not found' }, { status: 404 })
   return NextResponse.json({ referral })
 }
@@ -21,11 +21,11 @@ export async function PATCH(
     const body = await request.json()
     const { status, noteText, noteAuthor } = body
 
-    let updated = referralStore.getById(id)
+    let updated = await referralStore.getById(id)
     if (!updated) return NextResponse.json({ error: 'Referral not found' }, { status: 404 })
 
-    if (status) updated = referralStore.updateStatus(id, status)
-    if (noteText) updated = referralStore.addNote(id, noteAuthor || 'Specialist', noteText)
+    if (status) updated = await referralStore.updateStatus(id, status)
+    if (noteText) updated = await referralStore.addNote(id, noteAuthor || 'Specialist', noteText)
 
     // Email patient on status change — non-blocking
     if (status && updated?.patientEmail) {

@@ -1,3 +1,5 @@
+import { supabase } from './supabaseClient'
+
 export type Specialist = {
   id: string
   name: string
@@ -5,52 +7,61 @@ export type Specialist = {
   hospital: string
 }
 
-const SEED_SPECIALISTS: Specialist[] = [
-  { id: 'spec-1', name: 'Dr. Sarah Chen', specialty: 'Orthopedics', hospital: 'General Hospital' },
-  { id: 'spec-2', name: 'Dr. James Okafor', specialty: 'Orthopedics', hospital: 'City Medical Center' },
-  { id: 'spec-3', name: 'Dr. Maria Santos', specialty: 'Cardiology', hospital: 'Heart & Vascular Institute' },
-  { id: 'spec-4', name: 'Dr. Ahmed Hassan', specialty: 'Neurology', hospital: 'University Hospital' },
-  { id: 'spec-5', name: 'Dr. Emily Park', specialty: 'Dermatology', hospital: 'Skin & Wellness Clinic' },
-  { id: 'spec-6', name: 'Dr. Robert Kim', specialty: 'General Practice', hospital: 'Community Health Clinic' },
-]
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toSpecialist(row: any): Specialist {
+  return {
+    id: row.id,
+    name: row.name,
+    specialty: row.specialty,
+    hospital: row.hospital,
+  }
+}
 
 class SpecialistStore {
-  private specialists: Specialist[] = [...SEED_SPECIALISTS]
-
-  getAll(): Specialist[] {
-    return [...this.specialists]
+  async getAll(): Promise<Specialist[]> {
+    const { data, error } = await supabase.from('specialists').select('*')
+    if (error) throw error
+    return (data ?? []).map(toSpecialist)
   }
 
-  getById(id: string): Specialist | undefined {
-    return this.specialists.find((s) => s.id === id)
+  async getById(id: string): Promise<Specialist | undefined> {
+    const { data, error } = await supabase
+      .from('specialists')
+      .select('*')
+      .eq('id', id)
+      .single()
+    if (error) return undefined
+    return toSpecialist(data)
   }
 
-  getBySpecialty(specialty: string): Specialist[] {
-    const lower = specialty.toLowerCase()
-    return this.specialists.filter(
-      (s) =>
-        s.specialty.toLowerCase().includes(lower) ||
-        lower.includes(s.specialty.toLowerCase())
-    )
+  async getBySpecialty(specialty: string): Promise<Specialist[]> {
+    const { data, error } = await supabase
+      .from('specialists')
+      .select('*')
+      .ilike('specialty', `%${specialty}%`)
+    if (error) throw error
+    return (data ?? []).map(toSpecialist)
   }
 
-  findOrCreate(name: string, specialty: string, hospital: string): Specialist {
-    const existing = this.specialists.find(
-      (s) =>
-        s.name.toLowerCase() === name.toLowerCase() &&
-        s.specialty.toLowerCase() === specialty.toLowerCase() &&
-        s.hospital.toLowerCase() === hospital.toLowerCase()
-    )
-    if (existing) return existing
+  async findOrCreate(name: string, specialty: string, hospital: string): Promise<Specialist> {
+    const { data: existing } = await supabase
+      .from('specialists')
+      .select('*')
+      .ilike('name', name)
+      .ilike('specialty', specialty)
+      .ilike('hospital', hospital)
+      .maybeSingle()
 
-    const newSpec: Specialist = {
-      id: `spec-${Date.now()}`,
-      name,
-      specialty,
-      hospital,
-    }
-    this.specialists.push(newSpec)
-    return newSpec
+    if (existing) return toSpecialist(existing)
+
+    const id = `spec-${Date.now()}`
+    const { data: created, error } = await supabase
+      .from('specialists')
+      .insert({ id, name, specialty, hospital })
+      .select()
+      .single()
+    if (error) throw error
+    return toSpecialist(created)
   }
 }
 
