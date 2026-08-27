@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { referralStore } from '@/lib/referralStore'
+import { sendStatusUpdate } from '@/lib/email'
 
 export async function GET(
   _request: Request,
@@ -25,6 +26,17 @@ export async function PATCH(
 
     if (status) updated = referralStore.updateStatus(id, status)
     if (noteText) updated = referralStore.addNote(id, noteAuthor || 'Specialist', noteText)
+
+    // Email patient on status change — non-blocking
+    if (status && updated?.patientEmail) {
+      sendStatusUpdate({
+        to: updated.patientEmail,
+        patientName: updated.patientName,
+        referralId: updated.id,
+        status,
+        specialistNote: noteText,
+      }).catch(() => {})
+    }
 
     return NextResponse.json({ referral: updated })
   } catch (error) {

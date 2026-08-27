@@ -52,6 +52,7 @@ type TriageResult = {
 
 export default function IntakeForm() {
   const [patientName, setPatientName] = useState("");
+  const [patientEmail, setPatientEmail] = useState("");
   const [age, setAge] = useState("");
   const [height, setHeight] = useState("");
   const [weight, setWeight] = useState("");
@@ -117,7 +118,7 @@ export default function IntakeForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           patientName: patientName || "Anonymous Patient",
-          patientEmail: "",
+          patientEmail,
           bodyPart: selectedBodyParts.join(", ") || "not specified",
           symptoms: selectedSymptoms.join(", ") || intakeText,
           duration,
@@ -237,17 +238,33 @@ export default function IntakeForm() {
   // --- INTAKE FORM ---
   return (
     <form onSubmit={handleSubmit} className="rounded-[1.5rem] border border-[var(--line)] bg-[#fbf7f1] p-6 sm:p-8 space-y-6">
-      {/* Patient name */}
-      <label className="block rounded-2xl bg-white p-4 shadow-sm border border-transparent focus-within:border-amber-400">
-        <div className="text-sm font-medium text-[var(--foreground)]">Your Name</div>
-        <input
-          type="text"
-          value={patientName}
-          onChange={(e) => setPatientName(e.target.value)}
-          placeholder="e.g. Jordan Patel"
-          className="mt-2 w-full rounded-xl border border-[var(--line)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
-        />
-      </label>
+      {/* Patient name + email */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="block rounded-2xl bg-white p-4 shadow-sm border border-transparent focus-within:border-amber-400">
+          <div className="text-sm font-medium text-[var(--foreground)]">Your Name</div>
+          <input
+            type="text"
+            value={patientName}
+            onChange={(e) => setPatientName(e.target.value)}
+            placeholder="e.g. Jordan Patel"
+            className="mt-2 w-full rounded-xl border border-[var(--line)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
+          />
+        </label>
+        <label className="block rounded-2xl bg-white p-4 shadow-sm border border-transparent focus-within:border-amber-400">
+          <div className="text-sm font-medium text-[var(--foreground)]">
+            Email <span className="text-[var(--accent)]">*</span>
+          </div>
+          <input
+            type="email"
+            required
+            value={patientEmail}
+            onChange={(e) => setPatientEmail(e.target.value)}
+            placeholder="you@example.com"
+            className="mt-2 w-full rounded-xl border border-[var(--line)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
+          />
+          <p className="mt-1 text-[10px] text-[var(--muted)]">We&apos;ll send your tracking ID and status updates here</p>
+        </label>
+      </div>
 
       {/* Demographics */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
