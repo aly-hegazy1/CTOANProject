@@ -1,10 +1,17 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Referral } from '@/lib/referralStore'
-import SpecialistQueueItem from '@/app/components/SpecialistQueueItem'
+import { Referral, ReferralStatus } from '@/lib/referralStore'
+import UrgencyBadge from '@/app/components/UrgencyBadge'
 
-const SPECIALIST_PASSWORD = 'specialist123'
+const PASSWORD = '123'
+
+const STATUS_LABELS: Record<ReferralStatus, string> = {
+  submitted: 'Awaiting Review',
+  reviewed: 'Reviewed — Needs Appointment',
+  appointment_made: 'Appointment Made',
+  prescription_prescribed: 'Complete',
+}
 
 export default function SpecialistDashboard() {
   const [unlocked, setUnlocked] = useState(false)
@@ -13,8 +20,8 @@ export default function SpecialistDashboard() {
 
   const [referrals, setReferrals] = useState<Referral[]>([])
   const [loading, setLoading] = useState(true)
-  const [selected, setSelected] = useState<Referral | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
+  const [selected, setSelected] = useState<Referral | null>(null)
 
   async function load() {
     const res = await fetch('/api/referrals')
@@ -27,7 +34,7 @@ export default function SpecialistDashboard() {
 
   function handleUnlock(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (passwordInput === SPECIALIST_PASSWORD) {
+    if (passwordInput === PASSWORD) {
       setUnlocked(true)
       setPasswordError(false)
     } else {
@@ -36,38 +43,19 @@ export default function SpecialistDashboard() {
     }
   }
 
-  async function handleAccept(id: string) {
-    const name = prompt('Enter your name as assigned specialist:') || 'Dr. Jenkins'
+  async function updateStatus(id: string, status: ReferralStatus, noteText: string) {
     const res = await fetch(`/api/referrals/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        status: 'accepted',
-        assignedSpecialist: name,
-        noteText: `Referral accepted by ${name}.`,
-        noteAuthor: name,
-      }),
+      body: JSON.stringify({ status, noteText, noteAuthor: 'Specialist' }),
     })
     if (res.ok) {
-      setFeedback(`Referral ${id} accepted.`)
-      load()
-    }
-  }
-
-  async function handleSchedule(id: string, date: string) {
-    const res = await fetch(`/api/referrals/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        status: 'scheduled',
-        scheduledDate: date,
-        noteText: `Appointment scheduled for ${date}.`,
-        noteAuthor: 'Specialist',
-      }),
-    })
-    if (res.ok) {
-      setFeedback(`Referral ${id} scheduled for ${date}.`)
-      load()
+      setFeedback(`Updated → ${STATUS_LABELS[status]}`)
+      await load()
+      if (selected?.id === id) {
+        const updated = await fetch(`/api/referrals/${id}`).then(r => r.json())
+        setSelected(updated.referral)
+      }
     }
   }
 
@@ -77,47 +65,29 @@ export default function SpecialistDashboard() {
         <div className="w-full max-w-sm">
           <div className="rounded-[2rem] border border-[var(--line)] bg-[var(--surface)]/90 p-8 shadow-sm">
             <div className="mb-6 text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-[var(--line)] bg-white text-2xl shadow-sm">
-                🔒
-              </div>
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-[var(--line)] bg-white text-2xl shadow-sm">🔒</div>
               <p className="text-xs uppercase tracking-[0.25em] text-[var(--muted)]">Restricted Access</p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-[var(--foreground)]">
-                Specialist Dashboard
-              </h1>
-              <p className="mt-2 text-sm text-[var(--muted)]">Enter your specialist access code to continue.</p>
+              <h1 className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-[var(--foreground)]">Specialist Login</h1>
+              <p className="mt-2 text-sm text-[var(--muted)]">Enter your access code to continue.</p>
             </div>
-
             <form onSubmit={handleUnlock} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium uppercase tracking-wider text-[var(--muted)]">
-                  Access Code
-                </label>
-                <input
-                  type="password"
-                  value={passwordInput}
+                <label className="block text-xs font-medium uppercase tracking-wider text-[var(--muted)]">Access Code</label>
+                <input type="password" value={passwordInput}
                   onChange={(e) => { setPasswordInput(e.target.value); setPasswordError(false) }}
-                  placeholder="••••••••••••"
-                  autoFocus
-                  className={`mt-1.5 w-full rounded-2xl border px-4 py-3 text-sm text-[var(--foreground)] outline-none transition
-                    ${passwordError ? 'border-red-400 bg-red-50' : 'border-[var(--line)] bg-white focus:border-amber-400'}`}
-                />
-                {passwordError && (
-                  <p className="mt-1.5 text-xs text-red-600">Incorrect access code. Please try again.</p>
-                )}
+                  placeholder="••••" autoFocus
+                  className={`mt-1.5 w-full rounded-2xl border px-4 py-3 text-sm outline-none transition
+                    ${passwordError ? 'border-red-400 bg-red-50' : 'border-[var(--line)] bg-white focus:border-amber-400'}`} />
+                {passwordError && <p className="mt-1.5 text-xs text-red-600">Incorrect code. Try again.</p>}
               </div>
-              <button
-                type="submit"
-                className="w-full rounded-full bg-[var(--foreground)] py-3 text-sm font-medium text-white shadow-md transition hover:bg-slate-800"
-              >
+              <button type="submit"
+                className="w-full rounded-full bg-[var(--foreground)] py-3 text-sm font-medium text-white shadow-md transition hover:bg-slate-800">
                 Unlock Dashboard
               </button>
             </form>
-
             <p className="mt-6 text-center text-xs text-[var(--muted)]">
               Not a specialist?{' '}
-              <a href="/gp-dashboard" className="font-medium text-[var(--accent)] hover:underline">
-                Go to GP Dashboard →
-              </a>
+              <a href="/" className="font-medium text-[var(--accent)] hover:underline">← Home</a>
             </p>
           </div>
         </div>
@@ -125,91 +95,88 @@ export default function SpecialistDashboard() {
     )
   }
 
-  const incoming = referrals.filter((r) => r.status === 'reviewed')
-  const accepted = referrals.filter((r) => r.status === 'accepted')
-  const scheduled = referrals.filter((r) => r.status === 'scheduled')
-
   return (
     <div className="min-h-screen px-6 py-8 lg:px-10">
-      <header className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-[var(--muted)]">Specialist Dashboard</p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-[-0.04em] text-[var(--foreground)]">Incoming Referrals</h1>
-          </div>
-          <button
-            onClick={() => { setUnlocked(false); setPasswordInput('') }}
-            className="rounded-full border border-[var(--line)] bg-white px-4 py-2 text-xs font-medium text-[var(--muted)] hover:text-[var(--foreground)]"
-          >
-            🔒 Lock
-          </button>
+      <header className="mb-8 flex items-center justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-[0.25em] text-[var(--muted)]">Specialist Dashboard</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-[-0.04em] text-[var(--foreground)]">Patient Intake Forms</h1>
         </div>
-        <div className="mt-3 flex gap-4 text-sm text-[var(--muted)]">
-          <span className="font-medium text-amber-600">{incoming.length} awaiting acceptance</span>
-          <span>{accepted.length} accepted</span>
-          <span className="font-medium text-emerald-600">{scheduled.length} scheduled</span>
-        </div>
-        {feedback && (
-          <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
-            {feedback}
-          </div>
-        )}
+        <button onClick={() => { setUnlocked(false); setPasswordInput('') }}
+          className="rounded-full border border-[var(--line)] bg-white px-4 py-2 text-xs font-medium text-[var(--muted)] hover:text-[var(--foreground)]">
+          🔒 Lock
+        </button>
       </header>
 
+      {feedback && (
+        <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">{feedback}</div>
+      )}
+
       {loading ? (
-        <p className="text-sm text-[var(--muted)]">Loading queue…</p>
+        <p className="text-sm text-[var(--muted)]">Loading…</p>
       ) : (
-        <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
-          <div className="space-y-8">
-            {incoming.length > 0 && (
-              <section>
-                <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Awaiting Acceptance</h2>
-                <div className="space-y-4">
-                  {incoming.map((r) => (
-                    <SpecialistQueueItem key={r.id} referral={r} onAccept={handleAccept}
-                      onSchedule={handleSchedule} onSelect={setSelected} selected={selected?.id === r.id} />
-                  ))}
-                </div>
-              </section>
-            )}
-            {accepted.length > 0 && (
-              <section>
-                <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Accepted — Needs Scheduling</h2>
-                <div className="space-y-4">
-                  {accepted.map((r) => (
-                    <SpecialistQueueItem key={r.id} referral={r} onAccept={handleAccept}
-                      onSchedule={handleSchedule} onSelect={setSelected} selected={selected?.id === r.id} />
-                  ))}
-                </div>
-              </section>
-            )}
-            {scheduled.length > 0 && (
-              <section>
-                <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Scheduled</h2>
-                <div className="space-y-4">
-                  {scheduled.map((r) => (
-                    <SpecialistQueueItem key={r.id} referral={r} onAccept={handleAccept}
-                      onSchedule={handleSchedule} onSelect={setSelected} selected={selected?.id === r.id} />
-                  ))}
-                </div>
-              </section>
-            )}
-            {referrals.filter((r) => r.status !== 'submitted').length === 0 && (
+        <div className="grid gap-8 lg:grid-cols-[1fr_400px]">
+          <div className="space-y-4">
+            {referrals.length === 0 && (
               <p className="rounded-[2rem] border border-[var(--line)] bg-[var(--surface)]/90 p-10 text-center text-sm text-[var(--muted)]">
-                No referrals have been approved by a GP yet.
+                No intake forms submitted yet.
               </p>
             )}
+            {referrals.map((r) => (
+              <div key={r.id} onClick={() => setSelected(r)}
+                className={`cursor-pointer rounded-[2rem] border bg-[var(--surface)]/90 p-5 shadow-sm transition
+                  ${selected?.id === r.id ? 'border-[var(--accent)]' : 'border-[var(--line)] hover:border-amber-300'}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-[var(--foreground)]">{r.patientName}</p>
+                    <p className="mt-0.5 text-sm text-[var(--muted)]">{r.specialistType} · {r.bodyPart} · {r.duration}</p>
+                    <p className="mt-1 font-mono text-xs text-[var(--muted)]">ID: {r.id}</p>
+                  </div>
+                  <UrgencyBadge level={r.urgencyLevel} />
+                </div>
+
+                <p className="mt-3 line-clamp-2 text-sm leading-6 text-[var(--muted)]">{r.summary}</p>
+
+                <div className="mt-4 flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                  {r.status === 'submitted' && (
+                    <button onClick={() => updateStatus(r.id, 'reviewed', 'Intake form reviewed by specialist.')}
+                      className="rounded-full bg-blue-600 px-4 py-2 text-xs font-medium text-white transition hover:bg-blue-700">
+                      ✓ Mark as Reviewed
+                    </button>
+                  )}
+                  {r.status === 'reviewed' && (
+                    <button onClick={() => updateStatus(r.id, 'appointment_made', 'Appointment scheduled.')}
+                      className="rounded-full bg-amber-600 px-4 py-2 text-xs font-medium text-white transition hover:bg-amber-700">
+                      📅 Appointment Made
+                    </button>
+                  )}
+                  {r.status === 'appointment_made' && (
+                    <button onClick={() => updateStatus(r.id, 'prescription_prescribed', 'Prescription issued.')}
+                      className="rounded-full bg-emerald-600 px-4 py-2 text-xs font-medium text-white transition hover:bg-emerald-700">
+                      💊 Prescription Prescribed
+                    </button>
+                  )}
+                  <span className={`rounded-full border px-3 py-1.5 text-xs font-medium
+                    ${r.status === 'submitted' ? 'border-slate-200 bg-slate-50 text-slate-600'
+                    : r.status === 'reviewed' ? 'border-blue-200 bg-blue-50 text-blue-700'
+                    : r.status === 'appointment_made' ? 'border-amber-200 bg-amber-50 text-amber-700'
+                    : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+                    {STATUS_LABELS[r.status]}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
 
           {selected && (
             <aside className="sticky top-6 self-start rounded-[2rem] border border-[var(--line)] bg-[var(--surface)]/90 p-6 shadow-sm">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-[var(--foreground)]">Referral Details</h3>
+                <h3 className="font-semibold text-[var(--foreground)]">Intake Details</h3>
                 <button onClick={() => setSelected(null)} className="text-sm text-[var(--muted)] hover:text-[var(--foreground)]">✕</button>
               </div>
-              <div className="mt-4 space-y-3 text-sm">
+              <div className="mt-4 space-y-2 text-sm">
                 <Row label="Patient" value={selected.patientName} />
-                <Row label="Specialist type" value={selected.specialistType} />
+                <Row label="Specialist" value={selected.specialistType} />
                 <Row label="Body part" value={selected.bodyPart} />
                 <Row label="Symptoms" value={selected.symptoms} />
                 <Row label="Duration" value={selected.duration} />
@@ -218,19 +185,16 @@ export default function SpecialistDashboard() {
                   <p className="mb-1 font-medium text-[var(--foreground)]">Clinical Summary</p>
                   <p className="text-xs leading-5 text-[var(--muted)]">{selected.summary}</p>
                 </div>
-                <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3">
-                  <p className="mb-1 text-xs font-medium uppercase tracking-wider text-amber-900">Referral Letter</p>
-                  <pre className="whitespace-pre-wrap font-sans text-xs leading-5 text-amber-950/80">{selected.referralLetter}</pre>
+                <div className="rounded-xl border border-[var(--line)] bg-white p-3">
+                  <p className="mb-1 font-medium text-[var(--foreground)]">Patient&apos;s Description</p>
+                  <p className="text-xs leading-5 text-[var(--muted)]">{selected.intakeText}</p>
                 </div>
                 {selected.notes.map((n, i) => (
                   <div key={i} className="rounded-lg border border-[var(--line)] bg-white p-2 text-xs">
                     <span className="font-medium">{n.author}:</span> {n.text}
+                    <span className="ml-2 text-[var(--muted)]">{n.timestamp}</span>
                   </div>
                 ))}
-                <a href={`/referrals/${selected.id}`}
-                  className="block rounded-full border border-[var(--line)] bg-white px-4 py-2 text-center text-xs font-medium text-[var(--foreground)] hover:bg-slate-50">
-                  Open Status Page →
-                </a>
               </div>
             </aside>
           )}

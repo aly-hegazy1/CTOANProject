@@ -1,4 +1,4 @@
-export type ReferralStatus = 'submitted' | 'reviewed' | 'accepted' | 'scheduled'
+export type ReferralStatus = 'submitted' | 'reviewed' | 'appointment_made' | 'prescription_prescribed'
 export type UrgencyLevel = 'red' | 'yellow' | 'green'
 
 export type Referral = {
@@ -17,8 +17,6 @@ export type Referral = {
   rationale: string
   status: ReferralStatus
   createdAt: string
-  assignedSpecialist?: string
-  scheduledDate?: string
   notes: { author: string; text: string; timestamp: string }[]
 }
 
@@ -35,13 +33,12 @@ const INITIAL_REFERRALS: Referral[] = [
     urgencyLevel: 'red',
     specialistType: 'Orthopedics',
     summary: 'Acute internal derangement of the left knee with mechanical locking and severe pain.',
-    referralLetter: 'Dear Orthopedic Specialist,\n\nPatient Jordan Patel presents with acute knee trauma sustained during athletic activity, exhibiting mechanical locking and an inability to achieve full extension. Findings suggest acute meniscal pathology or ligamentous injury. Immediate clinical evaluation and MRI are strongly recommended.\n\nSincerely,\nDr. Alex Vance, MD',
-    rationale: 'Mechanical locking combined with acute trauma and high pain score indicates potential displaced meniscus tear requiring urgent specialist evaluation.',
+    referralLetter: '',
+    rationale: 'Mechanical locking combined with acute trauma and high pain score indicates potential displaced meniscus tear.',
     status: 'reviewed',
     createdAt: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
-    assignedSpecialist: 'Dr. Sarah Jenkins, Ortho',
     notes: [
-      { author: 'Dr. Vance (GP)', text: 'Reviewed initial intake and attached triage summary.', timestamp: '1 hour ago' }
+      { author: 'Specialist', text: 'Reviewed intake form. Urgent case — scheduling within 48 hours.', timestamp: '1 hour ago' }
     ]
   },
   {
@@ -56,8 +53,8 @@ const INITIAL_REFERRALS: Referral[] = [
     urgencyLevel: 'yellow',
     specialistType: 'Orthopedics',
     summary: 'Chronic right shoulder rotator cuff tendinopathy with nocturnal pain and restricted range of motion.',
-    referralLetter: 'Dear Orthopedic Specialist,\n\nElena Rostova presents with a 6-month history of subacromial impingement symptoms. Conservative physical therapy has provided minimal relief. Requesting specialist consultation for diagnostic ultrasound and consideration of cortisone injection.\n\nSincerely,\nDr. Alex Vance, MD',
-    rationale: 'Chronic duration without acute red flags warrants subspecialty outpatient evaluation within standard triage timeframes.',
+    referralLetter: '',
+    rationale: 'Chronic duration without acute red flags warrants subspecialty outpatient evaluation.',
     status: 'submitted',
     createdAt: new Date(Date.now() - 1000 * 60 * 360).toISOString(),
     notes: []
@@ -89,36 +86,17 @@ class ReferralStore {
     return newRef
   }
 
-  updateStatus(id: string, status: ReferralStatus, extra?: { assignedSpecialist?: string; scheduledDate?: string }): Referral | undefined {
+  updateStatus(id: string, status: ReferralStatus): Referral | undefined {
     const ref = this.getById(id)
     if (!ref) return undefined
     ref.status = status
-    if (extra?.assignedSpecialist !== undefined) ref.assignedSpecialist = extra.assignedSpecialist
-    if (extra?.scheduledDate !== undefined) ref.scheduledDate = extra.scheduledDate
-    return ref
-  }
-
-  updateClinical(
-    id: string,
-    updates: Partial<Pick<Referral, 'summary' | 'referralLetter' | 'specialistType' | 'urgencyLevel'>>
-  ): Referral | undefined {
-    const ref = this.getById(id)
-    if (!ref) return undefined
-    if (updates.summary !== undefined) ref.summary = updates.summary
-    if (updates.referralLetter !== undefined) ref.referralLetter = updates.referralLetter
-    if (updates.specialistType !== undefined) ref.specialistType = updates.specialistType
-    if (updates.urgencyLevel !== undefined) ref.urgencyLevel = updates.urgencyLevel
     return ref
   }
 
   addNote(id: string, author: string, text: string): Referral | undefined {
     const ref = this.getById(id)
     if (!ref) return undefined
-    ref.notes.push({
-      author,
-      text,
-      timestamp: 'Just now'
-    })
+    ref.notes.push({ author, text, timestamp: new Date().toLocaleTimeString() })
     return ref
   }
 }
