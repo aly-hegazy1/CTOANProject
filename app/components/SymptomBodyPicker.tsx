@@ -70,6 +70,8 @@ export interface SymptomBodyPickerProps {
   className?: string;
   /** Accessible label for the region group. */
   ariaLabel?: string;
+  /** Compact layout for embedding in forms without taking over the page. */
+  compact?: boolean;
 }
 
 /* -------------------------------------------------------------------------
@@ -329,12 +331,14 @@ export default function SymptomBodyPicker({
   disabled = false,
   className = '',
   ariaLabel = 'Select the body area or areas related to your symptoms',
+  compact = false,
 }: SymptomBodyPickerProps) {
   const isControlled = value !== undefined;
   const [internalSelected, setInternalSelected] = useState<BodyPartId[]>(
     sortByCanonicalOrder(defaultValue)
   );
   const [view, setView] = useState<View>('front');
+  const [showList, setShowList] = useState<boolean>(false);
   const [limitMessage, setLimitMessage] = useState<string | null>(null);
   const groupId = useId();
 
@@ -386,7 +390,7 @@ export default function SymptomBodyPicker({
   const selectedLabels = selected.map((id) => REGIONS[id].label);
 
   return (
-    <div className={`w-full max-w-md ${className}`}>
+    <div className={`w-full ${compact ? 'max-w-[280px]' : 'max-w-md'} ${className}`}>
       <style>{`
         .sbp-region {
           cursor: pointer;
@@ -416,10 +420,11 @@ export default function SymptomBodyPicker({
         }
       `}</style>
 
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium text-slate-700">Where does it hurt?</span>
+      <div className={`${compact ? 'flex min-h-[310px] flex-col' : ''}`}>
+        <div className={`flex items-center justify-between ${compact ? 'mb-2' : 'mb-3'}`}>
+        {!compact && <span className="text-sm font-medium text-slate-700">Where does it hurt?</span>}
         <div
-          className="inline-flex rounded-full border border-slate-300 bg-white p-0.5 text-sm"
+          className={`inline-flex rounded-full border border-slate-300 bg-white p-0.5 ${compact ? 'text-xs' : 'text-sm'}`}
           role="group"
           aria-label="Body diagram view"
         >
@@ -430,7 +435,7 @@ export default function SymptomBodyPicker({
               disabled={disabled}
               onClick={() => setView(v)}
               aria-pressed={view === v}
-              className={`px-3 py-1 rounded-full capitalize transition-colors ${
+              className={`rounded-full capitalize transition-colors ${compact ? 'px-2 py-0.5' : 'px-3 py-1'} ${
                 view === v
                   ? 'bg-blue-600 text-white'
                   : 'text-slate-600 hover:bg-slate-100'
@@ -442,80 +447,84 @@ export default function SymptomBodyPicker({
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-        <svg
-          viewBox="0 0 240 440"
-          role="group"
-          aria-label={ariaLabel}
-          className="mx-auto h-auto w-full max-w-[220px] select-none"
-        >
-          {visibleRegionIds.map((id) => {
-            const shape = REGIONS[id][view] as ShapeDef;
-            const isSelected = selected.includes(id);
-            const label = REGIONS[id].label;
-            const center = getShapeCenter(shape);
+      {!compact || !showList ? (
+        <div className={`mt-auto rounded-2xl border border-slate-200 bg-slate-50 ${compact ? 'p-2' : 'p-4'}`}>
+          <svg
+            viewBox="0 0 240 440"
+            role="group"
+            aria-label={ariaLabel}
+            className={`mx-auto h-auto w-full select-none ${compact ? 'max-w-[170px]' : 'max-w-[220px]'}`}
+          >
+            {visibleRegionIds.map((id) => {
+              const shape = REGIONS[id][view] as ShapeDef;
+              const isSelected = selected.includes(id);
+              const label = REGIONS[id].label;
+              const center = getShapeCenter(shape);
 
-            const commonProps = {
-              className: 'sbp-region',
-              role: 'checkbox' as const,
-              'aria-checked': isSelected,
-              'aria-label': label,
-              'aria-disabled': disabled,
-              tabIndex: disabled ? -1 : 0,
-              onClick: () => toggle(id),
-              onKeyDown: (e: KeyboardEvent) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  toggle(id);
-                }
-              },
-            };
+              const commonProps = {
+                className: 'sbp-region',
+                role: 'checkbox' as const,
+                'aria-checked': isSelected,
+                'aria-label': label,
+                'aria-disabled': disabled,
+                tabIndex: disabled ? -1 : 0,
+                onClick: () => toggle(id),
+                onKeyDown: (e: KeyboardEvent) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggle(id);
+                  }
+                },
+              };
 
-            return (
-              <g key={id}>
-                {shape.shape === 'circle' && (
-                  <circle {...commonProps} cx={shape.cx} cy={shape.cy} r={shape.r}>
-                    <title>{label}</title>
-                  </circle>
-                )}
-                {shape.shape === 'rect' && (
-                  <rect
-                    {...commonProps}
-                    x={shape.x}
-                    y={shape.y}
-                    width={shape.width}
-                    height={shape.height}
-                    rx={shape.rx}
-                  >
-                    <title>{label}</title>
-                  </rect>
-                )}
-                {shape.shape === 'ellipse' && (
-                  <ellipse {...commonProps} cx={shape.cx} cy={shape.cy} rx={shape.rx} ry={shape.ry}>
-                    <title>{label}</title>
-                  </ellipse>
-                )}
-                {isSelected && (
-                  <path
-                    d={`M ${center.cx - 5} ${center.cy} l 3.5 4 l 6.5 -8`}
-                    stroke="white"
-                    strokeWidth={2.2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    fill="none"
-                    pointerEvents="none"
-                  />
-                )}
-              </g>
-            );
-          })}
-        </svg>
-      </div>
+              return (
+                <g key={id}>
+                  {shape.shape === 'circle' && (
+                    <circle {...commonProps} cx={shape.cx} cy={shape.cy} r={shape.r}>
+                      <title>{label}</title>
+                    </circle>
+                  )}
+                  {shape.shape === 'rect' && (
+                    <rect
+                      {...commonProps}
+                      x={shape.x}
+                      y={shape.y}
+                      width={shape.width}
+                      height={shape.height}
+                      rx={shape.rx}
+                    >
+                      <title>{label}</title>
+                    </rect>
+                  )}
+                  {shape.shape === 'ellipse' && (
+                    <ellipse {...commonProps} cx={shape.cx} cy={shape.cy} rx={shape.rx} ry={shape.ry}>
+                      <title>{label}</title>
+                    </ellipse>
+                  )}
+                  {isSelected && (
+                    <path
+                      d={`M ${center.cx - 5} ${center.cy} l 3.5 4 l 6.5 -8`}
+                      stroke="white"
+                      strokeWidth={2.2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      fill="none"
+                      pointerEvents="none"
+                    />
+                  )}
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+      ) : null}
 
-      <p className="mt-2 text-xs text-slate-500">
-        Tap a body part above, or choose from the list below. You can switch between front and
-        back views — your selections carry over.
-      </p>
+      {!compact && (
+        <p className="mt-2 text-xs text-slate-500">
+          Tap a body part above, or choose from the list below. You can switch between front and
+          back views — your selections carry over.
+        </p>
+      )}
 
       {limitMessage && (
         <p role="alert" className="mt-2 text-xs font-medium text-amber-700">
@@ -523,7 +532,121 @@ export default function SymptomBodyPicker({
         </p>
       )}
 
-      {selected.length > 0 && (
+      {compact ? (
+        <div className="mt-auto flex flex-col gap-2 pt-2">
+          {showList && (
+            <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-3">
+              {GROUPS.map((group) => (
+                <fieldset key={group.label}>
+                  <legend className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">
+                    {group.label}
+                  </legend>
+                  <div className="flex flex-wrap gap-1.5">
+                    {group.ids.map((id) => {
+                      const isSelected = selected.includes(id);
+                      return (
+                        <label
+                          key={id}
+                          className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] cursor-pointer transition-colors ${
+                            isSelected
+                              ? 'border-blue-600 bg-blue-50 text-blue-700'
+                              : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                          } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <input
+                            type="checkbox"
+                            className="sr-only"
+                            name={`${groupId}-${id}`}
+                            checked={isSelected}
+                            disabled={disabled}
+                            onChange={() => toggle(id)}
+                          />
+                          {REGIONS[id].label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+              ))}
+            </div>
+          )}
+
+          {selected.length > 0 && (
+            <div className="flex flex-wrap gap-2" aria-live="polite">
+              {selected.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => toggle(id)}
+                  className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {REGIONS[id].label}
+                  <span aria-hidden="true">×</span>
+                  <span className="sr-only">Remove {REGIONS[id].label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setShowList((current) => !current)}
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50"
+          >
+            {showList ? 'Hide list' : 'Or pick from a list'}
+          </button>
+        </div>
+      ) : (
+        <details className="mt-4 rounded-xl border border-slate-200">
+          <summary className="cursor-pointer select-none px-4 py-2 text-sm font-medium text-slate-700">
+            Or pick from a list
+          </summary>
+          <div className="border-t border-slate-200 px-4 py-3 space-y-3">
+            {GROUPS.map((group) => (
+              <fieldset key={group.label}>
+                <legend className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">
+                  {group.label}
+                </legend>
+                <div className="flex flex-wrap gap-1.5">
+                  {group.ids.map((id) => {
+                    const isSelected = selected.includes(id);
+                    return (
+                      <label
+                        key={id}
+                        className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs cursor-pointer transition-colors ${
+                          isSelected
+                            ? 'border-blue-600 bg-blue-50 text-blue-700'
+                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                        } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="sr-only"
+                          name={`${groupId}-${id}`}
+                          checked={isSelected}
+                          disabled={disabled}
+                          onChange={() => toggle(id)}
+                        />
+                        {REGIONS[id].label}
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            ))}
+          </div>
+        </details>
+      )}
+
+      {!compact && (
+        <p className="mt-2 text-xs text-slate-500">
+          Tap a body part above, or choose from the list below. You can switch between front and
+          back views — your selections carry over.
+        </p>
+      )}
+
+      {!compact && selected.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2" aria-live="polite">
           {selected.map((id) => (
             <button
@@ -541,51 +664,12 @@ export default function SymptomBodyPicker({
         </div>
       )}
 
-      <details className="mt-4 rounded-xl border border-slate-200">
-        <summary className="cursor-pointer select-none px-4 py-2 text-sm font-medium text-slate-700">
-          Or pick from a list
-        </summary>
-        <div className="border-t border-slate-200 px-4 py-3 space-y-3">
-          {GROUPS.map((group) => (
-            <fieldset key={group.label}>
-              <legend className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">
-                {group.label}
-              </legend>
-              <div className="flex flex-wrap gap-1.5">
-                {group.ids.map((id) => {
-                  const isSelected = selected.includes(id);
-                  return (
-                    <label
-                      key={id}
-                      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs cursor-pointer transition-colors ${
-                        isSelected
-                          ? 'border-blue-600 bg-blue-50 text-blue-700'
-                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                      } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      <input
-                        type="checkbox"
-                        className="sr-only"
-                        name={`${groupId}-${id}`}
-                        checked={isSelected}
-                        disabled={disabled}
-                        onChange={() => toggle(id)}
-                      />
-                      {REGIONS[id].label}
-                    </label>
-                  );
-                })}
-              </div>
-            </fieldset>
-          ))}
-        </div>
-      </details>
-
       <span className="sr-only" aria-live="polite">
         {selected.length === 0
           ? 'No body areas selected'
           : `Selected: ${selectedLabels.join(', ')}`}
       </span>
+      </div>
     </div>
   );
 }
