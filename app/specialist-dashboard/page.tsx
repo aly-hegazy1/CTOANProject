@@ -4,7 +4,13 @@ import { useEffect, useState } from 'react'
 import { Referral } from '@/lib/referralStore'
 import SpecialistQueueItem from '@/app/components/SpecialistQueueItem'
 
+const SPECIALIST_PASSWORD = 'specialist123'
+
 export default function SpecialistDashboard() {
+  const [unlocked, setUnlocked] = useState(false)
+  const [passwordInput, setPasswordInput] = useState('')
+  const [passwordError, setPasswordError] = useState(false)
+
   const [referrals, setReferrals] = useState<Referral[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Referral | null>(null)
@@ -17,7 +23,18 @@ export default function SpecialistDashboard() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { if (unlocked) load() }, [unlocked])
+
+  function handleUnlock(e: React.SyntheticEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (passwordInput === SPECIALIST_PASSWORD) {
+      setUnlocked(true)
+      setPasswordError(false)
+    } else {
+      setPasswordError(true)
+      setPasswordInput('')
+    }
+  }
 
   async function handleAccept(id: string) {
     const name = prompt('Enter your name as assigned specialist:') || 'Dr. Jenkins'
@@ -54,6 +71,60 @@ export default function SpecialistDashboard() {
     }
   }
 
+  if (!unlocked) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-6">
+        <div className="w-full max-w-sm">
+          <div className="rounded-[2rem] border border-[var(--line)] bg-[var(--surface)]/90 p-8 shadow-sm">
+            <div className="mb-6 text-center">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-[var(--line)] bg-white text-2xl shadow-sm">
+                🔒
+              </div>
+              <p className="text-xs uppercase tracking-[0.25em] text-[var(--muted)]">Restricted Access</p>
+              <h1 className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-[var(--foreground)]">
+                Specialist Dashboard
+              </h1>
+              <p className="mt-2 text-sm text-[var(--muted)]">Enter your specialist access code to continue.</p>
+            </div>
+
+            <form onSubmit={handleUnlock} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium uppercase tracking-wider text-[var(--muted)]">
+                  Access Code
+                </label>
+                <input
+                  type="password"
+                  value={passwordInput}
+                  onChange={(e) => { setPasswordInput(e.target.value); setPasswordError(false) }}
+                  placeholder="••••••••••••"
+                  autoFocus
+                  className={`mt-1.5 w-full rounded-2xl border px-4 py-3 text-sm text-[var(--foreground)] outline-none transition
+                    ${passwordError ? 'border-red-400 bg-red-50' : 'border-[var(--line)] bg-white focus:border-amber-400'}`}
+                />
+                {passwordError && (
+                  <p className="mt-1.5 text-xs text-red-600">Incorrect access code. Please try again.</p>
+                )}
+              </div>
+              <button
+                type="submit"
+                className="w-full rounded-full bg-[var(--foreground)] py-3 text-sm font-medium text-white shadow-md transition hover:bg-slate-800"
+              >
+                Unlock Dashboard
+              </button>
+            </form>
+
+            <p className="mt-6 text-center text-xs text-[var(--muted)]">
+              Not a specialist?{' '}
+              <a href="/gp-dashboard" className="font-medium text-[var(--accent)] hover:underline">
+                Go to GP Dashboard →
+              </a>
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const incoming = referrals.filter((r) => r.status === 'reviewed')
   const accepted = referrals.filter((r) => r.status === 'accepted')
   const scheduled = referrals.filter((r) => r.status === 'scheduled')
@@ -61,8 +132,18 @@ export default function SpecialistDashboard() {
   return (
     <div className="min-h-screen px-6 py-8 lg:px-10">
       <header className="mb-8">
-        <p className="text-xs uppercase tracking-[0.25em] text-[var(--muted)]">Specialist Dashboard</p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-[-0.04em] text-[var(--foreground)]">Incoming Referrals</h1>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.25em] text-[var(--muted)]">Specialist Dashboard</p>
+            <h1 className="mt-1 text-3xl font-semibold tracking-[-0.04em] text-[var(--foreground)]">Incoming Referrals</h1>
+          </div>
+          <button
+            onClick={() => { setUnlocked(false); setPasswordInput('') }}
+            className="rounded-full border border-[var(--line)] bg-white px-4 py-2 text-xs font-medium text-[var(--muted)] hover:text-[var(--foreground)]"
+          >
+            🔒 Lock
+          </button>
+        </div>
         <div className="mt-3 flex gap-4 text-sm text-[var(--muted)]">
           <span className="font-medium text-amber-600">{incoming.length} awaiting acceptance</span>
           <span>{accepted.length} accepted</span>

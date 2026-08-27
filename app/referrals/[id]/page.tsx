@@ -102,9 +102,6 @@ export default function ReferralDetailPage() {
         <a href="/gp-dashboard" className="rounded-full border border-[var(--line)] bg-white px-4 py-2 text-xs font-medium text-[var(--foreground)] hover:bg-slate-50">
           ← GP Dashboard
         </a>
-        <a href="/specialist-dashboard" className="rounded-full border border-[var(--line)] bg-white px-4 py-2 text-xs font-medium text-[var(--foreground)] hover:bg-slate-50">
-          Specialist Dashboard →
-        </a>
       </div>
     </div>
   )
