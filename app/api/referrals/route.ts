@@ -64,7 +64,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ referral })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Error creating referral'
+    const message = error instanceof Error
+      ? error.message
+      : typeof error === 'object' && error !== null && 'message' in error
+        ? String((error as Record<string, unknown>).message)
+        : JSON.stringify(error)
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
